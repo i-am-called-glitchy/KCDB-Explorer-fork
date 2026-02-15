@@ -7,27 +7,15 @@
     const API_BASE = '/api/messages';
 
     const TYPE_LABELS = {
-        1: 'Join/Leave',
         2: 'Chat',
-        3: 'Whisper',
-        4: 'Clan',
-        5: 'Party',
-        6: 'Announcement',
-        7: 'Level Up',
-        8: 'Reward',
-        9: 'Kill',
-        10: 'Death',
-        11: 'Purchase',
-        12: 'Gift',
         13: 'Trade',
-        14: 'System',
+        20: 'Bot',
     };
 
     function typeLabel(t) {
         return TYPE_LABELS[t] || `Type ${t}`;
     }
-
-
+    
     async function fetchMessages(params = {}) {
         const clean = {}; // typeof null === 'object'. the language is gaslighting me
         for (const [k, v] of Object.entries(params)) {
@@ -658,3 +646,4 @@
     });
 
 })();
+
