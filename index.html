@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>KCDB Explorer — Kirka Chat Database</title>
+  <meta name="description"
+    content="Explore the Kirka.io Chat Database. Search messages, view user profiles, and analyze chat statistics.">
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+</head>
+
+<body>
+  <!-- Loading overlay -->
+  <div class="loading-overlay" id="loadingOverlay">
+    <div class="loading-content">
+      <div id="loadingMedia"></div>
+      <div class="loading-text">Loading KCDB Explorer...</div>
+    </div>
+  </div>
+  <script>
+    // Randomly pick a loading animation on each refresh
+    (function () {
+      const media = [
+        { type: 'img', src: 'loading.gif' },
+        { type: 'video', src: 'loading2.mp4' },
+      ];
+      const pick = media[Math.floor(Math.random() * media.length)];
+      const container = document.getElementById('loadingMedia');
+      if (pick.type === 'img') {
+        const img = document.createElement('img');
+        img.src = pick.src;
+        img.alt = 'Loading...';
+        img.className = 'loading-gif';
+        container.appendChild(img);
+      } else {
+        const vid = document.createElement('video');
+        vid.src = pick.src;
+        vid.autoplay = true;
+        vid.loop = true;
+        vid.muted = true;
+        vid.playsInline = true;
+        vid.className = 'loading-gif';
+        container.appendChild(vid);
+      }
+    })();
+  </script>
+
+  <!-- Mobile menu toggle -->
+  <button class="mobile-toggle" id="mobileToggle" aria-label="Toggle menu">☰</button>
+  <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+
+  <div class="app-layout">
+
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-logo">
+        <div class="logo-icon">K</div>
+        <span class="logo-text">KCDB Explorer</span>
+      </div>
+
+      <div class="sidebar-section-label">Navigate</div>
+
+      <button class="sidebar-item active" data-view="dashboard" id="nav-dashboard">
+        <span class="item-icon">📊</span>
+        Dashboard
+      </button>
+
+      <button class="sidebar-item" data-view="search" id="nav-search">
+        <span class="item-icon">🔍</span>
+        Search Messages
+      </button>
+
+      <button class="sidebar-item" data-view="user" id="nav-user" style="display:none">
+        <span class="item-icon">👤</span>
+        <span id="nav-user-label">User Profile</span>
+      </button>
+
+      <button class="sidebar-item" data-view="about" id="nav-about">
+        <span class="item-icon">📖</span>
+        About / API Docs
+      </button>
+
+      <div class="sidebar-footer">
+        Made by Glitchy's boyfriend<br>
+        and future husband<br>
+        <strong>Energyboy</strong> :3 ❤️<br>
+        <span style="margin-top:6px;display:block">KCDB by <a href="https://amcalledglitchy.dev"
+            target="_blank">amcalledglitchy</a></span>
+      </div>
+    </aside>
+
+    <!-- Main content -->
+    <main class="main-content" id="mainContent">
+
+      <!-- ========== DASHBOARD ========== -->
+      <div class="view active" id="view-dashboard">
+        <div class="page-header">
+          <h1>Dashboard</h1>
+          <p>Live statistics from the Kirka Chat Database</p>
+        </div>
+
+        <div class="stats-grid" id="statsGrid">
+          <div class="stat-card accent">
+            <div class="stat-label"><span class="stat-icon">💬</span> Total Messages</div>
+            <div class="stat-value" id="stat-total">
+              <div class="skeleton skeleton-value"></div>
+            </div>
+          </div>
+          <div class="stat-card success">
+            <div class="stat-label"><span class="stat-icon">📅</span> Today</div>
+            <div class="stat-value" id="stat-today">
+              <div class="skeleton skeleton-value"></div>
+            </div>
+          </div>
+          <div class="stat-card warning">
+            <div class="stat-label"><span class="stat-icon">📆</span> Yesterday</div>
+            <div class="stat-value" id="stat-yesterday">
+              <div class="skeleton skeleton-value"></div>
+            </div>
+          </div>
+          <div class="stat-card purple">
+            <div class="stat-label"><span class="stat-icon">⏰</span> This Hour</div>
+            <div class="stat-value" id="stat-hour">
+              <div class="skeleton skeleton-value"></div>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label"><span class="stat-icon">📊</span> Daily Average</div>
+            <div class="stat-value" id="stat-avg">
+              <div class="skeleton skeleton-value"></div>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label"><span class="stat-icon">👥</span> Active Users</div>
+            <div class="stat-value" id="stat-users">
+              <div class="skeleton skeleton-value"></div>
+            </div>
+            <div class="stat-sub" id="stat-sample"></div>
+          </div>
+        </div>
+
+        <div class="section-block" style="margin-bottom:20px">
+          <div class="section-title"><span class="section-icon">📈</span> Hourly Activity (Last 36h)</div>
+          <div class="chart-container" style="height:240px"><canvas id="chartHourly"></canvas></div>
+        </div>
+
+        <div class="charts-row">
+          <div class="section-block">
+            <div class="section-title"><span class="section-icon">📅</span> Daily Messages</div>
+            <div class="chart-container"><canvas id="chartDaily"></canvas></div>
+          </div>
+          <div class="section-block">
+            <div class="section-title"><span class="section-icon">🏷️</span> Message Types</div>
+            <div class="chart-container"><canvas id="chartTypes"></canvas></div>
+          </div>
+        </div>
+
+        <div class="charts-row">
+          <div class="section-block">
+            <div class="section-title"><span class="section-icon">🏆</span> Top Users (Recent)</div>
+            <div class="top-users-list" id="topUsersList">
+              <div class="loading-screen">
+                <div class="spinner"></div>
+              </div>
+            </div>
+          </div>
+          <div class="section-block">
+            <div class="section-title"><span class="section-icon">⚡</span> Recent Activity</div>
+            <div class="activity-feed" id="activityFeed">
+              <div class="loading-screen">
+                <div class="spinner"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ========== SEARCH ========== -->
+      <div class="view" id="view-search">
+        <div class="page-header">
+          <h1>Search Messages</h1>
+          <p>Query the database with any combination of filters</p>
+        </div>
+
+        <div class="search-form">
+          <div class="form-grid">
+            <div class="form-group">
+              <label for="s-username">Username</label>
+              <input type="text" id="s-username" placeholder="Partial match…">
+            </div>
+            <div class="form-group">
+              <label for="s-userid">User ID</label>
+              <input type="text" id="s-userid" placeholder="Full UUID…">
+            </div>
+            <div class="form-group">
+              <label for="s-shortid">Short ID</label>
+              <input type="text" id="s-shortid" placeholder="e.g. AVX3NA">
+            </div>
+            <div class="form-group">
+              <label for="s-message">Message (exact)</label>
+              <input type="text" id="s-message" placeholder="Exact full message…">
+            </div>
+            <div class="form-group">
+              <label for="s-contains">Message Contains</label>
+              <input type="text" id="s-contains" placeholder="word1;word2;word3">
+            </div>
+            <div class="form-group">
+              <label for="s-msgtype">Message Type</label>
+              <select id="s-msgtype">
+                <option value="">All Types</option>
+                <option value="2">Chat</option>
+                <option value="13">Trade</option>
+                <option value="1">Join/Leave</option>
+                <option value="6">Announcement</option>
+                <option value="14">System</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="s-exactid">Exact ID</label>
+              <input type="number" id="s-exactid" placeholder="Message ID">
+            </div>
+            <div class="form-group">
+              <label for="s-sinceid">Since ID</label>
+              <input type="number" id="s-sinceid" placeholder="After this ID…">
+            </div>
+            <div class="form-group">
+              <label for="s-beforeid">Before ID</label>
+              <input type="number" id="s-beforeid" placeholder="Before this ID…">
+            </div>
+            <div class="form-group">
+              <label for="s-limit">Limit</label>
+              <select id="s-limit">
+                <option value="25">25</option>
+                <option value="50">50</option>
+                <option value="100" selected>100</option>
+                <option value="250">250</option>
+                <option value="500">500</option>
+                <option value="1000">1000</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-actions">
+            <button class="btn btn-primary" id="searchBtn">🔍 Search</button>
+            <button class="btn btn-secondary" id="clearBtn">Clear</button>
+          </div>
+        </div>
+
+        <div id="searchResults">
+          <div class="empty-state">
+            <div class="empty-icon">🔎</div>
+            <p>Enter filters above and hit Search to explore the database</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- ========== USER PROFILE ========== -->
+      <div class="view" id="view-user">
+        <button class="back-link" id="backFromUser">← Back to Search</button>
+        <div class="user-profile-header" id="userProfileHeader"></div>
+        <div class="stats-grid" id="userStatsGrid"></div>
+        <div class="section-block">
+          <div class="section-title"><span class="section-icon">💬</span> Message History</div>
+          <div id="userMessages">
+            <div class="loading-screen">
+              <div class="spinner"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ========== CONTEXT VIEW ========== -->
+      <div class="view" id="view-context">
+        <button class="back-link" id="backFromContext">← Back</button>
+        <div class="page-header">
+          <h1>Message Context</h1>
+          <p>Viewing surrounding messages</p>
+        </div>
+        <div class="context-list full-page" id="contextList"></div>
+      </div>
+
+      <!-- ========== ABOUT ========== -->
+      <div class="view" id="view-about">
+        <div class="page-header">
+          <h1>About KCDB</h1>
+          <p>Kirka Chat Database — API documentation and info</p>
+        </div>
+
+        <div class="about-block">
+          <h3>What is KCDB?</h3>
+          <p>KCDB (Kirka Chat DataBase) is a third-party database that logs public chat messages from <a
+              href="https://kirka.io" target="_blank">Kirka.io</a>. It is maintained by <a
+              href="https://amcalledglitchy.dev" target="_blank">amcalledglitchy.dev</a>.</p>
+        </div>
+
+        <div class="about-block">
+          <h3>API Base URL</h3>
+          <p><code>https://kcdb.amcalledglitchy.dev</code></p>
+        </div>
+
+        <div class="about-block">
+          <h3>Endpoint: <code>/api/messages</code></h3>
+          <p>Retrieve messages with various filters. Results are always returned in descending order (newest first).</p>
+
+          <table class="endpoint-table">
+            <thead>
+              <tr>
+                <th>Parameter</th>
+                <th>Type</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>user_id</code></td>
+                <td>String</td>
+                <td>Full user ID (exact match)</td>
+              </tr>
+              <tr>
+                <td><code>short_id</code></td>
+                <td>String</td>
+                <td>User's short ID (exact match)</td>
+              </tr>
+              <tr>
+                <td><code>user_name</code></td>
+                <td>String</td>
+                <td>Username (partial match)</td>
+              </tr>
+              <tr>
+                <td><code>since_id</code></td>
+                <td>Integer</td>
+                <td>Messages with ID greater than this value</td>
+              </tr>
+              <tr>
+                <td><code>before_id</code></td>
+                <td>Integer</td>
+                <td>Messages with ID lower than this value</td>
+              </tr>
+              <tr>
+                <td><code>exact_id</code></td>
+                <td>Integer</td>
+                <td>Message with this exact ID</td>
+              </tr>
+              <tr>
+                <td><code>limit</code></td>
+                <td>Integer</td>
+                <td>Number of results (1–1000, default: 100)</td>
+              </tr>
+              <tr>
+                <td><code>message</code></td>
+                <td>String</td>
+                <td>Exact full message match</td>
+              </tr>
+              <tr>
+                <td><code>message_contains</code></td>
+                <td>String</td>
+                <td>Ordered keyword search separated by <code>;</code></td>
+              </tr>
+              <tr>
+                <td><code>message_type</code></td>
+                <td>Integer</td>
+                <td>Filter by message type (2 = Chat, 13 = Trade, etc.)</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="about-block">
+          <h3>Endpoint: <code>/api/stats</code></h3>
+          <p>Retrieve global and recent chat statistics, including message counts, user rankings, and activity timelines.
+            Cached for 60 seconds.</p>
+        </div>
+
+        <div class="about-block">
+          <h3>Credits</h3>
+          <ul>
+            <li><strong>KCDB Explorer</strong> made by Glitchy's boyfriend and future husband <strong>Energyboy</strong>
+              :3 ❤️</li>
+            <li><strong>KCDB</strong> (Kirka Chat DataBase) made by <strong>Glitchy</strong> (<a
+                href="https://amcalledglitchy.dev" target="_blank">amcalledglitchy</a>)</li>
+          </ul>
+        </div>
+
+        <div class="about-block">
+          <h3>Disclaimers</h3>
+          <ul>
+            <li>This explorer is <strong>not affiliated</strong> with xips or the Kirka.io staff team.</li>
+            <li>KCDB is a third-party hobbyist project.</li>
+            <li>Please don't abuse the API — if you need a full dump, contact the maintainer nicely.</li>
+          </ul>
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  <!-- Toast notification -->
+  <div class="toast" id="toast"></div>
+
+  <script src="app.js"></script>
+</body>
+
+</html>

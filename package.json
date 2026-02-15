@@ -1,0 +1,13 @@
+{
+  "name": "kcdb-explorer",
+  "version": "1.0.0",
+  "description": "Minimalist Notion-style explorer for the Kirka Chat Database",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.21.0"
+  }
+}
