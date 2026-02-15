@@ -8,7 +8,6 @@
   <meta name="description"
     content="Explore the Kirka.io Chat Database. Search messages, view user profiles, and analyze chat statistics.">
   <link rel="stylesheet" href="style.css">
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
 </head>
 
 <body>
@@ -142,8 +141,8 @@
         </div>
 
         <div class="section-block" style="margin-bottom:20px">
-          <div class="section-title"><span class="section-icon">📈</span> Hourly Activity (Last 36h)</div>
-          <div class="chart-container" style="height:240px"><canvas id="chartHourly"></canvas></div>
+          <div class="section-title"><span class="section-icon">📈</span> Hourly Activity (Last 48h)</div>
+          <div class="chart-container" style="height:220px"><canvas id="chartHourly"></canvas></div>
         </div>
 
         <div class="charts-row">
@@ -207,17 +206,6 @@
               <input type="text" id="s-contains" placeholder="word1;word2;word3">
             </div>
             <div class="form-group">
-              <label for="s-msgtype">Message Type</label>
-              <select id="s-msgtype">
-                <option value="">All Types</option>
-                <option value="2">Chat</option>
-                <option value="13">Trade</option>
-                <option value="1">Join/Leave</option>
-                <option value="6">Announcement</option>
-                <option value="14">System</option>
-              </select>
-            </div>
-            <div class="form-group">
               <label for="s-exactid">Exact ID</label>
               <input type="number" id="s-exactid" placeholder="Message ID">
             </div>
@@ -272,7 +260,7 @@
 
       <!-- ========== CONTEXT VIEW ========== -->
       <div class="view" id="view-context">
-        <button class="back-link" id="backFromContext">← Back</button>
+        <button class="back-link" id="backFromContext">← Back to Search</button>
         <div class="page-header">
           <h1>Message Context</h1>
           <p>Viewing surrounding messages</p>
@@ -301,8 +289,10 @@
 
         <div class="about-block">
           <h3>Endpoint: <code>/api/messages</code></h3>
-          <p>Retrieve messages with various filters. Results are always returned in descending order (newest first).</p>
+          <p>Retrieve a list of messages based on various filters. Results are always returned in descending order (newest first).</p>
+          <p><strong>Cache Duration:</strong> 5 seconds.</p>
 
+          <h4>Query Parameters</h4>
           <table class="endpoint-table">
             <thead>
               <tr>
@@ -325,22 +315,22 @@
               <tr>
                 <td><code>user_name</code></td>
                 <td>String</td>
-                <td>Username (partial match)</td>
+                <td>Username (partial match supported, e.g., <code>abc</code> matches <code>abcdef</code>)</td>
               </tr>
               <tr>
                 <td><code>since_id</code></td>
                 <td>Integer</td>
-                <td>Messages with ID greater than this value</td>
+                <td>Messages with an ID <strong>greater than</strong> this value (Newer history)</td>
               </tr>
               <tr>
                 <td><code>before_id</code></td>
                 <td>Integer</td>
-                <td>Messages with ID lower than this value</td>
+                <td>Messages with an ID <strong>lower than</strong> this value (Older history)</td>
               </tr>
               <tr>
                 <td><code>exact_id</code></td>
                 <td>Integer</td>
-                <td>Message with this exact ID</td>
+                <td>Message with this exact ID (overrides <code>since_id</code>/<code>before_id</code>)</td>
               </tr>
               <tr>
                 <td><code>limit</code></td>
@@ -350,7 +340,7 @@
               <tr>
                 <td><code>message</code></td>
                 <td>String</td>
-                <td>Exact full message match</td>
+                <td>Exact full message string match</td>
               </tr>
               <tr>
                 <td><code>message_contains</code></td>
@@ -360,7 +350,94 @@
               <tr>
                 <td><code>message_type</code></td>
                 <td>Integer</td>
-                <td>Filter by message type (2 = Chat, 13 = Trade, etc.)</td>
+                <td>Filter by message type (2 = Chat, 13 = Trade). Type 3 (bulk/history) messages are processed individually, so querying for type 3 yields no results.</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <h4>Response Structure</h4>
+          <p>Returns an object containing the total count and an array of message objects.</p>
+          <table class="endpoint-table">
+            <thead>
+              <tr>
+                <th>Key</th>
+                <th>Type</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>count</code></td>
+                <td>Integer</td>
+                <td>Number of messages returned (limited by <code>limit</code>)</td>
+              </tr>
+              <tr>
+                <td><code>results</code></td>
+                <td>Array</td>
+                <td>List of message objects (see fields below)</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <h4>Message Object Fields</h4>
+          <table class="endpoint-table">
+            <thead>
+              <tr>
+                <th>Field</th>
+                <th>Type</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>id</code></td>
+                <td>Integer</td>
+                <td>Unique database ID</td>
+              </tr>
+              <tr>
+                <td><code>hash</code></td>
+                <td>String</td>
+                <td>Sha256 verification hash</td>
+              </tr>
+              <tr>
+                <td><code>user_id</code></td>
+                <td>String</td>
+                <td>Sender's full unique identifier</td>
+              </tr>
+              <tr>
+                <td><code>user_short_id</code></td>
+                <td>String</td>
+                <td>Sender's public short ID</td>
+              </tr>
+              <tr>
+                <td><code>user_name</code></td>
+                <td>String</td>
+                <td>Sender's username at time of recording</td>
+              </tr>
+              <tr>
+                <td><code>user_role</code></td>
+                <td>String</td>
+                <td>User role (e.g., USER, BOT, ADMIN)</td>
+              </tr>
+              <tr>
+                <td><code>user_level</code></td>
+                <td>Integer</td>
+                <td>In-game user level</td>
+              </tr>
+              <tr>
+                <td><code>message</code></td>
+                <td>String</td>
+                <td>Message content</td>
+              </tr>
+              <tr>
+                <td><code>type</code></td>
+                <td>Integer</td>
+                <td>Channel/Message type (e.g., 1=Global, 2=Trade)</td>
+              </tr>
+              <tr>
+                <td><code>received_at</code></td>
+                <td>String</td>
+                <td>Timestamp (YYYY-MM-DD HH:MM:SS)</td>
               </tr>
             </tbody>
           </table>
@@ -368,8 +445,97 @@
 
         <div class="about-block">
           <h3>Endpoint: <code>/api/stats</code></h3>
-          <p>Retrieve global and recent chat statistics, including message counts, user rankings, and activity timelines.
-            Cached for 60 seconds.</p>
+          <p>Retrieve global and recent chat statistics, including message counts, user rankings, and activity timelines.</p>
+          <p>Complex metrics (unique users, type counts, top users) are calculated using the <strong>most recent 60,000 messages</strong>.</p>
+          <p><strong>Cache Duration:</strong> 60 seconds.</p>
+
+          <h4>Response Structure</h4>
+          <table class="endpoint-table">
+            <thead>
+              <tr>
+                <th>Key</th>
+                <th>Type</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>totalMessages</code></td>
+                <td>Integer</td>
+                <td>Absolute total number of messages in the database</td>
+              </tr>
+              <tr>
+                <td><code>sampleSize</code></td>
+                <td>Integer</td>
+                <td>Number of recent messages used for complex stats</td>
+              </tr>
+              <tr>
+                <td><code>today</code></td>
+                <td>Object</td>
+                <td>Contains <code>date</code> and message <code>count</code> for current UTC day</td>
+              </tr>
+              <tr>
+                <td><code>yesterday</code></td>
+                <td>Object</td>
+                <td>Contains <code>date</code> and message <code>count</code> for previous UTC day</td>
+              </tr>
+              <tr>
+                <td><code>thisHour</code></td>
+                <td>Integer</td>
+                <td>Messages sent in the last 60 minutes</td>
+              </tr>
+              <tr>
+                <td><code>uniqueUsers</code></td>
+                <td>Integer</td>
+                <td>Total unique users within the <code>sampleSize</code></td>
+              </tr>
+              <tr>
+                <td><code>avgDaily</code></td>
+                <td>Integer</td>
+                <td>Average messages per day (based on yesterday)</td>
+              </tr>
+              <tr>
+                <td><code>dayCounts</code></td>
+                <td>Object</td>
+                <td>Key-value pairs of dates and message counts</td>
+              </tr>
+              <tr>
+                <td><code>hourlyTimeline</code></td>
+                <td>Array</td>
+                <td>Message counts grouped by hour (last 36h)</td>
+              </tr>
+              <tr>
+                <td><code>typeCounts</code></td>
+                <td>Object</td>
+                <td>Breakdown of message types within sample</td>
+              </tr>
+              <tr>
+                <td><code>topUsers</code></td>
+                <td>Array</td>
+                <td>Top 15 most active users in sample</td>
+              </tr>
+              <tr>
+                <td><code>recentMessages</code></td>
+                <td>Array</td>
+                <td>The 20 most recently sent messages</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="about-block">
+          <h3>Hash Verification Information</h3>
+          <p>Messages include a SHA-256 hash for verification. Details on the hashing process:</p>
+          <ul>
+            <li><strong>Genesis hash:</strong> 64 zeros (<code>"0"*64</code>).</li>
+            <li><strong>Algorithm:</strong> SHA-256.</li>
+            <li><strong>Encoding:</strong> The final concatenated string is encoded as UTF-8 before hashing.</li>
+            <li><strong>Default NULL value:</strong> "None".</li>
+            <li><strong>Type Conversion:</strong> Non-string values (integers like <code>user_level</code>) are converted to base-10 strings.</li>
+            <li><strong>Canonical Format:</strong><br>
+              <code>prev_hash|user_id|user_short_id|user_name|user_role|user_level|message|type|received_at</code>
+            </li>
+          </ul>
         </div>
 
         <div class="about-block">
@@ -385,20 +551,21 @@
         <div class="about-block">
           <h3>Disclaimers</h3>
           <ul>
-            <li>This explorer is <strong>not affiliated</strong> with xips or the Kirka.io staff team.</li>
-            <li>KCDB is a third-party hobbyist project.</li>
-            <li>Please don't abuse the API — if you need a full dump, contact the maintainer nicely.</li>
+            <li>The maintainer is voluntarily and loosely affiliated with the Kirka.io staff team; however, KCDB is an <strong>independently operated</strong> project.</li>
+            <li>The maintainer does not claim liability unless explicitly required by law.</li>
+            <li>Please don't abuse the API. If you require a full database dump, please contact the maintainer nicely via Discord or email.</li>
           </ul>
         </div>
       </div>
 
-    </main>
-  </div>
+  <!-- Message Context Modal -->
+  <!-- REMOVED -->
 
   <!-- Toast notification -->
   <div class="toast" id="toast"></div>
 
   <script src="app.js"></script>
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js/vcd15cbe7772f49c399c6a5babf22c1241717689176015" integrity="sha512-ZpsOmlRQV6y907TI0dKBHq9Md29nnaEIPlkf84rnaERnq6zvWvPUqr2ft8M1aS28oN72PdrCzSjY4U6VaAw1EQ==" data-cf-beacon='{"version":"2024.11.0","token":"b8f7534acd114424a754676c33eeafbf","r":1,"server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
 </body>
 
 </html>
